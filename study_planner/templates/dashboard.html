@@ -1,0 +1,551 @@
+{% extends "base.html" %}
+{% block title %}StudyFlow Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="page-title" id="section-title">Dashboard</h1>
+        <span class="date-badge">{{ today }}</span>
+    </div>
+
+    <div class="topbar-right">
+        {% if notifications %}
+        <div class="notif-bell">
+            <span>🔔</span>
+            <span class="notif-badge">{{ notifications|length }}</span>
+
+            <div class="notif-dropdown">
+                {% for n in notifications %}
+                <div class="notif-item">
+                    <span>{{ n.message }}</span>
+                    <a href="{{ url_for('mark_read', nid=n.id) }}" class="notif-dismiss">✕</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <a href="{{ url_for('check_reminders') }}" class="btn-ghost btn-sm">Check Reminders</a>
+    </div>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px;">
+      {% for category, message in messages %}
+        <div class="alert {% if category == 'error' %}alert-error{% elif category == 'success' %}alert-success{% else %}alert-success{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+<!-- OVERVIEW -->
+<div id="tab-overview" class="tab-panel active">
+
+    <div class="stats-grid">
+        <div class="stat-card stat-blue">
+            <div class="stat-icon">⏱</div>
+            <div class="stat-body">
+                <span class="stat-value">{{ total_hours }}h</span>
+                <span class="stat-label">Total Studied</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-green">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-body">
+                <span class="stat-value">{{ today_hours }}h</span>
+                <span class="stat-label">Today</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-amber">
+            <div class="stat-icon">✅</div>
+            <div class="stat-body">
+                <span class="stat-value">{{ completed_tasks }}</span>
+                <span class="stat-label">Completed Tasks</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-red">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-body">
+                <span class="stat-value">{{ overdue_tasks }}</span>
+                <span class="stat-label">Overdue</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-purple">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-body">
+                <span class="stat-value">{{ goals|length }}</span>
+                <span class="stat-label">Active Goals</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-teal">
+            <div class="stat-icon">📚</div>
+            <div class="stat-body">
+                <span class="stat-value">{{ subjects|length }}</span>
+                <span class="stat-label">Subjects</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="charts-row">
+        {% if weekly %}
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3>Weekly Activity</h3>
+                <span class="card-sub">Last 7 days</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if subject_stats %}
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3>Subject Breakdown</h3>
+                <span class="card-sub">Hours studied</span>
+            </div>
+
+            <div class="breakdown-list">
+                {% set max_mins = subject_stats[0].total_mins %}
+                {% for s in subject_stats %}
+                {% set breakdown_width = (s.total_mins / max_mins * 100)|int %}
+                <div class="breakdown-item">
+                    <span class="breakdown-name">{{ s.name }}</span>
+
+                    <div class="breakdown-bar-track">
+                        <div class="breakdown-bar dynamic-width" data-width="{{ breakdown_width }}"></div>
+                    </div>
+
+                    <span class="breakdown-val">{{ (s.total_mins / 60)|round(1) }}h</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="overview-bottom">
+        <div class="card">
+            <div class="card-header">
+                <h3>Upcoming Tasks</h3>
+                <button class="btn-ghost btn-sm" onclick="switchTab('tasks','Tasks')">View All</button>
+            </div>
+
+            <div class="task-list">
+                {% set upcoming = tasks | selectattr('status', 'equalto', 'Pending') | list %}
+                {% if upcoming %}
+                    {% for task in upcoming[:5] %}
+                    <div class="task-item {% if task.deadline and task.deadline < today %}task-overdue{% endif %}">
+                        <div class="task-left">
+                            <span class="priority-dot priority-{{ task.priority.lower() }}"></span>
+                            <div class="task-info">
+                                <span class="task-title">{{ task.title }}</span>
+                                <div class="task-meta">
+                                    {% if task.subject_name %}
+                                    <span class="task-subject">{{ task.subject_name }}</span>
+                                    {% endif %}
+                                    {% if task.deadline %}
+                                    <span class="task-deadline">📅 {{ task.deadline }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <span class="badge badge-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">No pending tasks.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Goal Progress</h3>
+                <button class="btn-ghost btn-sm" onclick="switchTab('goals','Goals')">View All</button>
+            </div>
+
+            <div class="goals-list">
+                {% if goals %}
+                    {% for goal in goals[:4] %}
+                    {% set pct = [(goal.progress_hours / goal.target_hours * 100) if goal.target_hours > 0 else 0, 100] | min %}
+                    {% set goal_width = pct|int %}
+                    <div class="goal-item">
+                        <div class="goal-header">
+                            <span class="goal-title">{{ goal.title }}</span>
+                            <span class="goal-progress-text">{{ goal.progress_hours }}h / {{ goal.target_hours }}h</span>
+                        </div>
+
+                        <div class="progress-track">
+                            <div class="progress-fill dynamic-width {% if pct >= 100 %}progress-complete{% endif %}" data-width="{{ goal_width }}"></div>
+                        </div>
+
+                        <div class="goal-footer">
+                            <span class="goal-pct">{{ pct|int }}%</span>
+                            {% if goal.deadline %}
+                            <span class="goal-deadline">Due {{ goal.deadline }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">No goals yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TASKS -->
+<div id="tab-tasks" class="tab-panel">
+
+    <div class="section-header">
+        <div class="task-filter-pills">
+            <button class="filter-pill active" onclick="filterTasks('all', this)">All <span class="pill-count">{{ tasks|length }}</span></button>
+            <button class="filter-pill" onclick="filterTasks('pending', this)">Pending <span class="pill-count">{{ pending_tasks }}</span></button>
+            <button class="filter-pill" onclick="filterTasks('completed', this)">Done <span class="pill-count">{{ completed_tasks }}</span></button>
+            {% if overdue_tasks > 0 %}
+            <button class="filter-pill filter-pill-danger" onclick="filterTasks('overdue', this)">Overdue <span class="pill-count">{{ overdue_tasks }}</span></button>
+            {% endif %}
+        </div>
+
+        <button class="btn-primary btn-sm" onclick="togglePanel('add-task-panel')">+ Add Task</button>
+    </div>
+
+    <div id="add-task-panel" class="panel-form" style="display:none;">
+        <div class="panel-form-inner">
+            <h4>New Task</h4>
+            <form method="POST" action="{{ url_for('add_task') }}">
+                <div class="form-grid-2">
+                    <div class="field-group fg-flat">
+                        <label>Task Title</label>
+                        <input type="text" name="title" required class="form-input" placeholder="Enter task title">
+                    </div>
+
+                    <div class="field-group fg-flat">
+                        <label>Subject</label>
+                        <select name="subject_id" class="form-select">
+                            <option value="">No Subject</option>
+                            {% for s in subjects %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="field-group fg-flat">
+                        <label>Deadline</label>
+                        <input type="date" name="deadline" class="form-input">
+                    </div>
+
+                    <div class="field-group fg-flat">
+                        <label>Priority</label>
+                        <select name="priority" class="form-select">
+                            <option>Low</option>
+                            <option selected>Medium</option>
+                            <option>High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Add Task</button>
+                    <button type="button" class="btn-ghost" onclick="togglePanel('add-task-panel')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="task-list" id="task-list-container">
+            {% if tasks %}
+                {% for task in tasks %}
+                <div class="task-item task-row
+                    {% if task.status == 'Completed' %}task-done status-completed{% endif %}
+                    {% if task.deadline and task.deadline < today and task.status != 'Completed' %}task-overdue status-overdue{% endif %}
+                    {% if task.status == 'Pending' and not (task.deadline and task.deadline < today) %}status-pending{% endif %}">
+
+                    <div class="task-left">
+                        <span class="priority-dot priority-{{ task.priority.lower() }}"></span>
+                        <div class="task-info">
+                            <span class="task-title">{{ task.title }}</span>
+                            <div class="task-meta">
+                                {% if task.subject_name %}
+                                <span class="task-subject">{{ task.subject_name }}</span>
+                                {% endif %}
+                                {% if task.deadline %}
+                                <span class="task-deadline {% if task.deadline < today and task.status != 'Completed' %}deadline-past{% endif %}">
+                                    📅 {{ task.deadline }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="task-actions">
+                        <span class="badge badge-{{ task.priority.lower() }}">{{ task.priority }}</span>
+
+                        {% if task.status == 'Completed' %}
+                            <span class="badge badge-done">Done</span>
+                        {% else %}
+                            {% if task.deadline and task.deadline < today %}
+                            <span class="badge badge-overdue">Overdue</span>
+                            {% endif %}
+                            <a href="{{ url_for('complete_task', tid=task.id) }}" class="btn-icon btn-complete" title="Mark complete">✓</a>
+                        {% endif %}
+
+                        <a href="{{ url_for('delete_task', tid=task.id) }}" class="btn-icon btn-delete" title="Delete" onclick="return confirm('Delete this task?')">✕</a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">No tasks yet.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+            <h3>Subjects</h3>
+            <button class="btn-ghost btn-sm" onclick="togglePanel('add-subject-panel')">+ Add Subject</button>
+        </div>
+
+        <div id="add-subject-panel" class="inline-form" style="display:none;">
+            <form method="POST" action="{{ url_for('add_subject') }}">
+                <div class="form-row">
+                    <input type="text" name="name" placeholder="Subject name" required class="form-input flex-grow">
+                    <input type="color" name="color" value="#6366f1" class="color-picker">
+                    <button type="submit" class="btn-primary btn-sm">Add</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="subject-chips">
+            {% if subjects %}
+                {% for s in subjects %}
+                <div class="subject-chip">
+                    <span class="subject-dot dynamic-bg" data-bg="{{ s.color or '#6366f1' }}"></span>
+                    <span class="subject-name">{{ s.name }}</span>
+                    <a href="{{ url_for('delete_subject', sid=s.id) }}" class="subject-remove" onclick="return confirm('Delete subject?')">✕</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state" style="padding: 16px 20px;">No subjects yet.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- GOALS -->
+<div id="tab-goals" class="tab-panel">
+
+    <div class="section-header">
+        <div></div>
+        <button class="btn-primary btn-sm" onclick="togglePanel('add-goal-panel')">+ Add Goal</button>
+    </div>
+
+    <div id="add-goal-panel" class="panel-form" style="display:none;">
+        <div class="panel-form-inner">
+            <h4>New Goal</h4>
+            <form method="POST" action="{{ url_for('add_goal') }}">
+                <div class="form-grid-2">
+                    <div class="field-group fg-flat">
+                        <label>Goal Title</label>
+                        <input type="text" name="title" required class="form-input" placeholder="Enter goal title">
+                    </div>
+
+                    <div class="field-group fg-flat">
+                        <label>Target Hours</label>
+                        <input type="number" name="target_hours" min="1" required class="form-input" placeholder="20">
+                    </div>
+
+                    <div class="field-group fg-flat">
+                        <label>Deadline</label>
+                        <input type="date" name="deadline" class="form-input">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Create Goal</button>
+                    <button type="button" class="btn-ghost" onclick="togglePanel('add-goal-panel')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if goals %}
+    <div class="goals-grid">
+        {% for goal in goals %}
+        {% set pct = [(goal.progress_hours / goal.target_hours * 100) if goal.target_hours > 0 else 0, 100] | min %}
+        {% set goal_card_width = pct|int %}
+        <div class="goal-card {% if pct >= 100 %}goal-complete{% endif %}">
+            <div class="goal-card-top">
+                <div class="goal-card-icon">
+                    {% if pct >= 100 %}🏆{% elif pct >= 50 %}🔥{% else %}🎯{% endif %}
+                </div>
+                <a href="{{ url_for('delete_goal', gid=goal.id) }}" class="btn-icon btn-delete" onclick="return confirm('Delete goal?')">✕</a>
+            </div>
+
+            <h4 class="goal-card-title">{{ goal.title }}</h4>
+
+            {% if goal.deadline %}
+            <p class="goal-card-deadline">📅 Due {{ goal.deadline }}</p>
+            {% endif %}
+
+            <div class="goal-card-stats">
+                <div class="goal-stat">
+                    <span class="goal-stat-val">{{ goal.progress_hours }}</span>
+                    <span class="goal-stat-label">done</span>
+                </div>
+                <div class="goal-stat">
+                    <span class="goal-stat-val">{{ goal.target_hours }}</span>
+                    <span class="goal-stat-label">target</span>
+                </div>
+                <div class="goal-stat">
+                    <span class="goal-stat-val {% if pct >= 100 %}text-green{% endif %}">{{ pct|int }}%</span>
+                    <span class="goal-stat-label">complete</span>
+                </div>
+            </div>
+
+            <div class="progress-track" style="margin-top: 14px;">
+                <div class="progress-fill dynamic-width {% if pct >= 100 %}progress-complete{% endif %}" data-width="{{ goal_card_width }}"></div>
+            </div>
+
+            {% if pct >= 100 %}
+            <p class="goal-done-label">🎉 Goal achieved!</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="empty-state-big">
+            <div class="empty-icon">🎯</div>
+            <h3>No goals yet</h3>
+            <p>Create your first goal to start tracking progress.</p>
+            <button class="btn-primary" style="margin-top:12px;" onclick="togglePanel('add-goal-panel')">Create First Goal</button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- SESSIONS -->
+<div id="tab-sessions" class="tab-panel">
+
+    <div class="sessions-layout">
+        <div class="sessions-left">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Log a Session</h3>
+                </div>
+
+                <form method="POST" action="{{ url_for('add_session') }}" class="session-form">
+                    <div class="field-group">
+                        <label>Duration (minutes)</label>
+                        <div class="duration-row">
+                            <button type="button" class="dur-btn" onclick="adjustDuration(-15)">−15</button>
+                            <button type="button" class="dur-btn" onclick="adjustDuration(-5)">−5</button>
+                            <input type="number" name="duration" id="duration-val" value="30" min="1" max="480" class="form-input dur-input">
+                            <button type="button" class="dur-btn" onclick="adjustDuration(5)">+5</button>
+                            <button type="button" class="dur-btn" onclick="adjustDuration(15)">+15</button>
+                        </div>
+
+                        <div class="duration-presets">
+                            <button type="button" class="preset-btn" onclick="setDuration(25)">25 min</button>
+                            <button type="button" class="preset-btn" onclick="setDuration(45)">45 min</button>
+                            <button type="button" class="preset-btn" onclick="setDuration(60)">1 hour</button>
+                            <button type="button" class="preset-btn" onclick="setDuration(90)">1.5 hr</button>
+                            <button type="button" class="preset-btn" onclick="setDuration(120)">2 hrs</button>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Subject</label>
+                        <select name="subject_id" class="form-select session-select">
+                            <option value="">General Study</option>
+                            {% for s in subjects %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Notes</label>
+                        <input type="text" name="notes" placeholder="What did you study?" class="form-input session-input">
+                    </div>
+
+                    <button type="submit" class="btn-primary btn-full-pad">Log Session</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="sessions-right">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Your Stats</h3>
+                </div>
+
+                <div class="session-stats-grid">
+                    <div class="session-stat-box stat-blue">
+                        <span class="ssb-val">{{ total_hours }}h</span>
+                        <span class="ssb-label">All Time</span>
+                    </div>
+
+                    <div class="session-stat-box stat-green">
+                        <span class="ssb-val">{{ today_hours }}h</span>
+                        <span class="ssb-label">Today</span>
+                    </div>
+                </div>
+
+                {% if weekly %}
+                <div style="border-top: 1px solid var(--border); padding: 16px 20px 0;">
+                    <p style="font-size:0.82rem; color: var(--text-soft); font-weight:600; margin-bottom:8px;">WEEKLY CHART</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="weeklyChartSessions"></canvas>
+                </div>
+                {% endif %}
+
+                {% if subject_stats %}
+                <div style="border-top: 1px solid var(--border);">
+                    <div class="card-header">
+                        <h3>By Subject</h3>
+                    </div>
+
+                    <div class="breakdown-list">
+                        {% set max_mins = subject_stats[0].total_mins %}
+                        {% for s in subject_stats %}
+                        {% set session_width = (s.total_mins / max_mins * 100)|int %}
+                        <div class="breakdown-item">
+                            <span class="breakdown-name">{{ s.name }}</span>
+
+                            <div class="breakdown-bar-track">
+                                <div class="breakdown-bar dynamic-width" data-width="{{ session_width }}"></div>
+                            </div>
+
+                            <span class="breakdown-val">{{ (s.total_mins / 60)|round(1) }}h</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if weekly %}
+<script id="weekly-data" type="application/json">
+{{ weekly | tojson }}
+</script>
+{% endif %}
+
+{% endblock %}

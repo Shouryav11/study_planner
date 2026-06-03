@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | StudyFlow</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #FDFDFD;
+            --bg-secondary: #F7F8F7;
+            --card: rgba(255, 255, 255, 0.82);
+            --card-solid: #ffffff;
+            --border: rgba(0, 0, 0, 0.08);
+
+            --text: #333333;
+            --text-soft: #5f6368;
+
+            --primary: #A8C3A1;
+            --secondary: #6B8E9C;
+            --highlight: #FF6F61;
+
+            --success: #2ECC71;
+            --danger: #e35d5d;
+
+            --shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+            --radius-xl: 24px;
+            --radius-lg: 18px;
+            --radius-md: 12px;
+            --transition: 0.25s ease;
+        }
+
+        body.dark {
+            --bg: #1C1C1C;
+            --bg-secondary: #232323;
+            --card: rgba(34, 34, 34, 0.88);
+            --card-solid: #262626;
+            --border: rgba(255, 255, 255, 0.08);
+
+            --text: #E0E0E0;
+            --text-soft: #b7b7b7;
+
+            --primary: #2ECC71;
+            --secondary: #5DADE2;
+            --highlight: #E1B12C;
+
+            --success: #2ECC71;
+            --danger: #ff7b7b;
+
+            --shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(168,195,161,0.18), transparent 28%),
+                radial-gradient(circle at bottom right, rgba(107,142,156,0.12), transparent 25%),
+                var(--bg);
+            color: var(--text);
+            transition: background var(--transition), color var(--transition);
+        }
+
+        .auth-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+        }
+
+        .auth-left {
+            padding: 48px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .brand-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 1.2rem;
+            letter-spacing: -0.03em;
+        }
+
+        .brand-icon {
+            color: var(--secondary);
+        }
+
+        .theme-toggle {
+            border: 1px solid var(--border);
+            background: var(--card-solid);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .hero {
+            max-width: 560px;
+        }
+
+        .hero h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 4rem;
+            line-height: 0.95;
+            letter-spacing: -0.05em;
+            margin-bottom: 18px;
+        }
+
+        .hero h1 span {
+            color: var(--highlight);
+        }
+
+        .hero p {
+            font-size: 1.08rem;
+            color: var(--text-soft);
+            line-height: 1.7;
+            max-width: 500px;
+        }
+
+        .hero-badges {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 28px;
+        }
+
+        .hero-badge {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 10px 14px;
+            box-shadow: var(--shadow);
+            color: var(--text-soft);
+            font-size: 0.94rem;
+        }
+
+        .hero-card {
+            margin-top: 32px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 22px;
+            box-shadow: var(--shadow);
+            max-width: 520px;
+        }
+
+        .hero-card h3 {
+            font-family: 'Syne', sans-serif;
+            margin-bottom: 12px;
+            font-size: 1.15rem;
+        }
+
+        .hero-card p {
+            font-size: 0.98rem;
+        }
+
+        .auth-right {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 460px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow);
+            padding: 30px;
+            backdrop-filter: blur(14px);
+        }
+
+        .login-card h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: 2rem;
+            letter-spacing: -0.04em;
+            margin-bottom: 8px;
+        }
+
+        .login-card .subtext {
+            color: var(--text-soft);
+            margin-bottom: 26px;
+        }
+
+        .alert {
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+        }
+
+        .alert-error {
+            background: rgba(227,93,93,0.12);
+            color: var(--danger);
+            border: 1px solid rgba(227,93,93,0.18);
+        }
+
+        .alert-success {
+            background: rgba(46,204,113,0.12);
+            color: var(--success);
+            border: 1px solid rgba(46,204,113,0.18);
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .field-group label {
+            font-size: 0.94rem;
+            font-weight: 600;
+            color: var(--text-soft);
+        }
+
+        .field-group input {
+            width: 100%;
+            background: var(--card-solid);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            outline: none;
+            transition: all var(--transition);
+            font-size: 0.98rem;
+        }
+
+        .field-group input:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 4px rgba(107, 142, 156, 0.12);
+        }
+
+        body.dark .field-group input:focus {
+            box-shadow: 0 0 0 4px rgba(93, 173, 226, 0.14);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--highlight);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 14px 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition);
+            margin-top: 8px;
+            font-size: 0.98rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-soft);
+        }
+
+        .auth-footer a {
+            color: var(--secondary);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 980px) {
+            .auth-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-left {
+                padding: 28px 22px 0;
+            }
+
+            .hero h1 {
+                font-size: 3rem;
+            }
+
+            .auth-right {
+                padding: 22px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 {
+                font-size: 2.45rem;
+            }
+
+            .login-card {
+                padding: 22px;
+            }
+
+            .brand-row {
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px;">
+      {% for category, message in messages %}
+        <div class="alert {% if category == 'error' %}alert-error{% elif category == 'success' %}alert-success{% else %}alert-success{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+<div class="auth-shell">
+    <section class="auth-left">
+        <div class="brand-row">
+            <div class="brand">
+                <span class="brand-icon">◈</span>
+                <span>StudyFlow</span>
+            </div>
+
+            <button class="theme-toggle" id="theme-toggle" type="button">🌙 Theme</button>
+        </div>
+
+        <div class="hero">
+            <h1>Learn with <span>clarity</span> and consistency.</h1>
+            <p>
+                Organize subjects, manage tasks, track study sessions, and build momentum with a planner designed to keep you focused.
+            </p>
+
+            <div class="hero-badges">
+                <div class="hero-badge">📚 Subject Tracking</div>
+                <div class="hero-badge">⏱ Session Logging</div>
+                <div class="hero-badge">🎯 Goal Progress</div>
+            </div>
+
+            <div class="hero-card">
+                <h3>Your study command center</h3>
+                <p>
+                    Stay on top of deadlines, improve consistency, and turn scattered effort into a clear study routine.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="auth-right">
+        <div class="login-card">
+            <h2>Welcome back</h2>
+            <p class="subtext">Sign in to continue your study journey.</p>
+
+            {% if success %}
+            <div class="alert alert-success">Account created successfully. Please log in.</div>
+            {% endif %}
+
+            {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="field-group">
+                    <label for="email">Email</label>
+                    <input id="email" type="email" name="email" placeholder="Enter your email" required>
+                </div>
+
+                <div class="field-group">
+                    <label for="password">Password</label>
+                    <input id="password" type="password" name="password" placeholder="Enter your password" required>
+                </div>
+
+                <button type="submit" class="submit-btn">Sign In</button>
+            </form>
+
+            <div class="auth-footer">
+                Don’t have an account?
+                <a href="{{ url_for('register') }}">Create one</a>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    function applySavedTheme() {
+        const savedTheme = localStorage.getItem("studyflow-theme");
+        const toggleBtn = document.getElementById("theme-toggle");
+
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark");
+            if (toggleBtn) toggleBtn.textContent = "🌞 Theme";
+        } else {
+            document.body.classList.remove("dark");
+            if (toggleBtn) toggleBtn.textContent = "🌙 Theme";
+        }
+    }
+
+    function setupThemeToggle() {
+        const toggleBtn = document.getElementById("theme-toggle");
+        if (!toggleBtn) return;
+
+        toggleBtn.addEventListener("click", () => {
+            document.body.classList.toggle("dark");
+            const isDark = document.body.classList.contains("dark");
+            localStorage.setItem("studyflow-theme", isDark ? "dark" : "light");
+            toggleBtn.textContent = isDark ? "🌞 Theme" : "🌙 Theme";
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        applySavedTheme();
+        setupThemeToggle();
+    });
+</script>
+
+</body>
+</html>
